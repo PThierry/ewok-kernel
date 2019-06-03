@@ -24,6 +24,29 @@ with types.c;
 
 package c.kernel is
 
+   procedure init_stack_chk_guard
+   with
+      convention     => c,
+      import         => true,
+      external_name  => "init_stack_chk_guard",
+      global         => null;
+
+
+   procedure usart_init
+   with
+      convention     => c,
+      import         => true,
+      external_name  => "usart_init",
+      global         => null;
+
+   procedure log_init
+   with
+      convention     => c,
+      import         => true,
+      external_name  => "debug_console_init",
+      global         => null;
+
+
    procedure log (s : types.c.c_string)
    with
       convention     => c,
