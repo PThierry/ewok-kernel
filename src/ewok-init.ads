@@ -27,9 +27,6 @@ is
 
    procedure main
      (argc  : in  integer;
-      args  : in  system_address)
-   with  convention     => c,
-         export         => true,
-         external_name  => "ewok_init";
+      args  : in  system_address);
 
 end ewok.init;

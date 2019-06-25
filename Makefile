@@ -55,11 +55,15 @@ show:
 prove:
 	$(Q)$(MAKE) -C $@ all
 
-clean_headers:
-	$(Q)$(MAKE) -C src clean_headers
-
 __clean:
 	$(Q)$(MAKE) -C src clean
 
 __distclean:
 	$(Q)$(MAKE) -C src distclean
+
+clean_headers:
+	$(Q)$(MAKE) -C src clean_headers
+
+libgnat:
+	$(Q)$(MAKE) -C libgnat all
+

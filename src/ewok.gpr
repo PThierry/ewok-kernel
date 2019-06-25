@@ -1,0 +1,141 @@
+with "../libgnat/gnat.gpr";
+
+Project ewok is
+
+   type Build_Size is ("size", "hybrid", "perf");
+   Kernel_Build_Size : Build_Size := external("KERNEL_ADA_BUILDSIZE");
+
+   size_switches := ();
+   perf_switches := ();
+   size_noverif_switches := ();
+   perf_noverif_switches := ();
+   extra_languages := ();
+
+   basic :=
+     ("-fstack-usage",  -- Generate .su file with informations about the
+      -- amount of stack used
+      "-gnateG",        -- Generate preprocessed source
+      "-gnatep=" & ewok'Project_Dir & "gnatprep.def", -- Preprocessing data file
+      "-gnatet=target.atp",
+      "-gnatec=" & ewok'Project_Dir & "ewok.adc",
+      "-gnatn",         -- Enable pragma Inline
+      "-gnata",         -- Enable pragma Assert | Debug
+      "-gnatwa",        -- Turn on all warnings
+      "-gnatw.X",       -- Turn off warnings for export/import
+      "-gnatwe");       -- Treat all warnings as errors
+
+   verif :=
+     ("-gnato",         -- Turn on all checks
+      "-gnatVa");       -- Turn on all validity checks
+
+   no_verif :=
+     ("-gnatp",         -- Turn off all checks
+      "-gnatVn");       -- Turn off all validity checks
+
+   for Languages use ("Ada","Asm");
+
+   for Source_Dirs use
+     ("arch/Ada",
+      "arch/cores/" & external("ARCH"),
+      "arch/socs/" & external("SOCNAME"),
+      "arch/socs/" & external("SOCNAME") & "/generated",
+      ".",
+      "syscalls",
+      "exported",
+      "generated");
+
+   for Object_Dir    use external("BUILD_DIR");
+   for Target        use external("ADA_ARCH");
+   for Runtime ("ada") use external("ADA_PROFILE");
+   for Main          use ("startup");
+
+   -- Ada code
+   case Kernel_Build_Size is
+      when "size" =>
+         size_switches := ("-Os", "-g") & basic & verif;
+         perf_switches := ("-Os", "-g") & basic & verif;
+         size_noverif_switches := ("-Os", "-g") & basic & no_verif;
+         perf_noverif_switches := ("-Os", "-g") & basic & no_verif;
+      when "hybrid" =>
+         size_switches := ("-Os", "-g") & basic & verif;
+         perf_switches := ("-O2", "-g") & basic & verif;
+         size_noverif_switches := ("-Os", "-g") & basic & no_verif;
+         perf_noverif_switches := ("-O2", "-g") & basic & no_verif;
+      when "perf" =>
+         size_switches := ("-Os", "-g") & basic & verif;
+         perf_switches := ("-O3", "-g") & basic & verif;
+         size_noverif_switches := ("-Os", "-g") & basic & no_verif;
+         perf_noverif_switches := ("-O3", "-g") & basic & no_verif;
+   end case;
+
+
+   Local_Path := "src";
+
+    package Builder is
+       for Executable ("startup.s") use "kernel";
+    end Builder;
+
+   package Compiler is
+      for Default_Switches ("ada") use size_switches;
+
+      for Switches ("ewok-sched.adb")              use perf_switches;
+      for Switches ("ewok-tasks.adb")              use perf_switches;
+      for Switches ("ewok-interrupts-handler.adb") use perf_switches;
+      for Switches ("ewok-syscalls-handler.adb")   use perf_switches;
+      for Switches ("ewok-syscalls-ipc.adb")       use perf_switches;
+      for Switches ("ewok-isr.adb")                use perf_switches;
+      for Switches ("ewok-posthook.adb")           use perf_switches;
+      for Switches ("ewok-softirq.adb")            use perf_switches;
+
+      for Switches ("soc-nvic.adb")                use perf_switches;
+      for Switches ("soc-dma.adb")                 use perf_switches;
+      for Switches ("soc-gpio.adb")                use perf_switches;
+      for Switches ("soc-gpio-interfaces.adb")     use perf_switches;
+
+      -- Proved SPARK code
+      for Switches ("ewok-perm.adb")               use perf_noverif_switches;
+
+      for Switches ("soc-interrupts.adb")          use perf_noverif_switches;
+      for Switches ("m4-mpu.adb")                  use perf_noverif_switches;
+      for Switches ("m4-cpu.adb")                  use perf_noverif_switches;
+      for Switches ("m4-cpu-instructions.adb")     use perf_noverif_switches;
+
+      for Switches ("m4-systick.adb")              use perf_noverif_switches;
+      for Switches ("soc-dwt.adb")                 use perf_noverif_switches;
+      for Switches ("m4-scb.adb")                  use perf_noverif_switches;
+
+      -- Debugging / error handling code
+      for Switches ("ewok-tasks-debug.adb")        use size_noverif_switches;
+      for Switches ("ewok-debug.adb")              use size_noverif_switches;
+      for Switches ("ewok-mpu-handler.adb")        use size_noverif_switches;
+
+   end Compiler;
+
+
+--   package Binder is
+--      for Default_Switches ("ada") use ("-n");
+--   end Binder;
+
+--   package Linker is
+--      --for Driver use ewok'Target & "-ld";
+--      for Switches ("ada") use
+--        ("-lgnat",
+--          "-L" & ewok'Object_Dir & "/libgnat",
+--          "--output=" & ewok'Object_Dir & "/" & external("KERN_BINARY")
+--         );
+--   end Linker;
+    package Linker is
+       for Default_Switches ("ada") use
+         (
+          "-L" & ewok'Object_Dir,
+          "-lgnat",
+          "--output=" & ewok'Object_Dir & "/" & external("KERN_BINARY"),
+          "-T" & external("LD_FILE")
+         );
+    end Linker;
+
+    package Naming is
+       for Body_Suffix ("Asm") use ".s";
+    end Naming;
+end ewok;
+

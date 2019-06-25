@@ -12,8 +12,7 @@
   *                - Configure the clock system and the external SRAM mounted on
   *                  STM324xG-EVAL board to be used as data memory (optional,
   *                  to be enabled by user)
-  *                - Branches to main in the C library (which eventually
-  *                  calls main()).
+  *                - Branches to main Ada main entry.
   *            After Reset the Cortex-M4 processor is in Thread mode,
   *            priority is Privileged, and the Stack is set to Main.
   ******************************************************************************
@@ -77,7 +76,7 @@ g_StackAddress:
  * @brief  This is the code that gets called when the processor first
  *          starts execution following a reset event. Only the absolutely
  *          necessary set is performed, after which the application
- *          supplied main() routine is called.
+ *          supplied ewok-init() routine is called.
  * @param  None
  * @retval None
  */
@@ -122,7 +121,7 @@ LoopFillZerobss:
     ldr     r1, = g_BaseAddress
     str     r5, [r1]
     dmb
-    bl      main
+    bl      ewok_init
     bx      lr
 
 .size  Reset_Handler, .-Reset_Handler

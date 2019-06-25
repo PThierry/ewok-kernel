@@ -40,15 +40,9 @@ is
 
    -- Note: those procedures are exported to be used by the libgnat
    --       'last_chance_handler'
-   procedure alert (s : string)
-   with  convention     => ada,
-         export         => true,
-         external_name  => "ewok_debug_alert";
+   procedure alert (s : string);
 
-   procedure newline
-   with  convention     => ada,
-         export         => true,
-         external_name  => "ewok_debug_newline";
+   procedure newline;
 
    procedure panic (s : string);
 

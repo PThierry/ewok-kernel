@@ -27,9 +27,6 @@ is
 
    procedure processor_init
    with
-      convention     => c,
-      export         => true,
-      external_name  => "processor_init",
       global         => null,
       inline;
 

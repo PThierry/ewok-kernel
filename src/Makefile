@@ -20,44 +20,31 @@ VERSION = 1
 
 # use an app-specific build dir
 APP_BUILD_DIR = $(BUILD_DIR)/$(DIR_NAME)
+ADA_BUILD_DIR = $(APP_BUILD_DIR)/Ada
 
-CFLAGS := $(KERN_CFLAGS)
-CFLAGS += $(EXTRA_CFLAGS)
-CFLAGS += -I. -IC -IC/syscalls -IC/generated -I$(CORE_DIR) -Iarch
-CFLAGS += -MMD -MP
-CFLAGS += -fstack-protector-strong
-CFLAGS += -I$(PROJ_FILES)/kernel/src/arch
-CFLAGS += -I$(CORE_DIR) -Iarch -Iarch/cores/$(CONFIG_ARCH)/C -Iarch/socs/$(CONFIG_SOCNAME)/C -Iarch/boards/$(CONFIG_BOARDNAME) -Iarch/boards
-CFLAGS += -I$(PROJ_FILES)/include/generated
-
-
-CLANG_CFLAGS := -I../../include/generated -I. -Isyscalls -I../src/generated  -I$(CORE_DIR) -Iarch -Iarch/cores/$(ARCH)/C -Iarch/socs/$(SOC)/C -Iarch/boards/$(BOARD) -Iarch/boards
-
-# if no specific ldscript is specified, using default one, if the SDK want to relink successively with
-# varous ldscripts, this variable has to be passed to the Makefile commandline
-EXTRA_LDFLAGS ?= -Tkernel.ld
-
-LDFLAGS += $(EXTRA_LDFLAGS) -L$(APP_BUILD_DIR) $(AFLAGS_GCC) -fno-builtin -nostdlib -nostartfiles -Xlinker
-
-
-LD_LIBS = -lkernel -L$(APP_BUILD_DIR)/Ada/lib
-LD_LIBS += -lgnat -L$(BUILD_DIR)/kernel/libgnat
+#CFLAGS := $(KERN_CFLAGS)
+#CFLAGS += $(EXTRA_CFLAGS)
+#CFLAGS += -I. -IC -IC/syscalls -IC/generated -I$(CORE_DIR) -Iarch
+#CFLAGS += -MMD -MP
+#CFLAGS += -fstack-protector-strong
+#CFLAGS += -I$(PROJ_FILES)/kernel/src/arch
+#CFLAGS += -I$(CORE_DIR) -Iarch -Iarch/cores/$(CONFIG_ARCH)/C -Iarch/socs/$(CONFIG_SOCNAME)/C -Iarch/boards/$(CONFIG_BOARDNAME) -Iarch/boards
+#CFLAGS += -I$(PROJ_FILES)/include/generated
+#
+#
+#CLANG_CFLAGS := -I../../include/generated -I. -Isyscalls -I../src/generated  -I$(CORE_DIR) -Iarch -Iarch/cores/$(ARCH)/C -Iarch/socs/$(SOC)/C -Iarch/boards/$(BOARD) -Iarch/boards
+#
+## if no specific ldscript is specified, using default one, if the SDK want to relink successively with
+## varous ldscripts, this variable has to be passed to the Makefile commandline
+#EXTRA_LDFLAGS ?= -Tkernel.ld
+#
+#LDFLAGS += $(EXTRA_LDFLAGS) -L$(APP_BUILD_DIR) $(AFLAGS_GCC) -fno-builtin -nostdlib -nostartfiles -Xlinker
+#
+#
+#LD_LIBS = -lkernel -L$(APP_BUILD_DIR)/Ada/lib
+#LD_LIBS += -lgnat -L$(BUILD_DIR)/kernel/libgnat
 
 BUILD_DIR ?= $(PROJ_FILE)build
-
-SRC = $(wildcard C/*.c) $(wildcard C/syscalls/*.c)
-OBJ := $(SRC:%.c=$(APP_BUILD_DIR)/%.o)
-DEP := $(OBJ:%.o=%.d)
-
-# all files in Ada dir will replace C equivalent
-ASRC_DIR = Ada
-ASRC = $(wildcard $(ASRC_DIR)/*.adb) $(wildcard $(ASRC_DIR)/syscalls/*.adb)
-ALIB = $(APP_BUILD_DIR)/Ada/lib/libkernel.a
-ADIR = $(APP_BUILD_DIR)/Ada/lib
-
-SOC_DIR := $(PROJ_FILES)/kernel/src/arch/socs/$(SOC)
-SOC_SRC := startup_$(SOC).s
-SOC_OBJ := $(patsubst %.s,$(APP_BUILD_DIR)/asm/%.o,$(SOC_SRC))
 
 OUT_DIRS = $(dir $(KERNEL_OBJ)) $(dir $(AALI)) $(dir $(ROBJ)) $(dir $(ALIB))
 
@@ -65,11 +52,11 @@ LDSCRIPT_NAME = $(APP_BUILD_DIR)/$(APP_NAME).ld
 
 # file to (dist)clean
 # objects and compilation related
-TODEL_CLEAN += $(OBJ) $(ALDIR) $(ALIB) $(DEP) $(LDSCRIPT_NAME)
+TODEL_CLEAN +=  $(LDSCRIPT_NAME)
 # targets
 TODEL_DISTCLEAN += $(APP_BUILD_DIR)
 
-.PHONY: __clean __distclean libgnat
+.PHONY: __clean __distclean
 
 default: all
 
@@ -85,7 +72,7 @@ all:
 	@echo "is downloaded and can be compiled"
 else
 
-all: $(APP_BUILD_DIR) libgnat kernel
+all: $(APP_BUILD_DIR) $(ADA_BUILD_DIR) kernel
 
 endif
 
@@ -103,8 +90,8 @@ show:
 	@echo "\t\tAPP_BUILD_DIR\t=> " $(APP_BUILD_DIR)
 	@echo
 
-libgnat:
-	$(Q)$(MAKE) -C libgnat all
+#libgnat:
+#	$(Q)$(MAKE) -C libgnat all
 
 kernel: $(APP_BUILD_DIR)/$(ELF_NAME) $(APP_BUILD_DIR)/$(HEX_NAME)
 
@@ -114,32 +101,20 @@ kernel: $(APP_BUILD_DIR)/$(ELF_NAME) $(APP_BUILD_DIR)/$(HEX_NAME)
 # kernel C sources files
 
 
-$(ADIR):
-	$(call cmd,mkdir)
-
-$(ALIB): $(ADIR) libkernel
-
-libkernel: libkernel.gpr
-	$(call cmd,ada_lib)
+ewok: ewok.gpr
+	mkdir -p $(APP_BUILD_DIR)/obj
+	LD_FILE=$(APP_NAME).ld KERN_BINARY=$(APP_NAME).elf ADA_ARCH=$(CONFIG_ADA_ARCH) ADA_RUNTIME=$(ADA_RUNTIME) ADA_PROFILE=$(CONFIG_ADA_PROFILE) BUILD_DIR=$(APP_BUILD_DIR) SOC=$(SOC) ARCH=$(CONFIG_ARCH) SOCNAME=$(CONFIG_SOCNAME) KERNEL_ADA_BUILDSIZE=$(CONFIG_KERNEL_ADA_BUILDSIZE) gprbuild -vm -P$< -XLDSCRIPT=$(APP_NAME).ld
 
 
 sanitize: $(SRC)
 	clang -target armv7-m -mfloat-abi=hard -mcpu=cortex-m4 $(CLANG_CFLAGS) --analyze $(SRC)
-
-$(APP_BUILD_DIR)/%.o: %.c
-	$(call if_changed,cc_o_c)
-
-# only for ASM startup file
-$(APP_BUILD_DIR)/asm/%.o: $(SOC_DIR)/$(SOC_SRC)
-	$(call if_changed,cc_o_c)
 
 # LDSCRIPT. All are built in one time
 $(LDSCRIPT_NAME): ../$(APP_NAME).ld.in
 	$(call if_changed,k_ldscript)
 
 # ELF
-$(APP_BUILD_DIR)/$(ELF_NAME): $(LDSCRIPT_NAME) $(OBJ) $(SOC_OBJ) $(ALIB)
-	$(call if_changed,link_o_target)
+$(APP_BUILD_DIR)/$(ELF_NAME): $(LDSCRIPT_NAME) ewok
 
 # HEX
 $(APP_BUILD_DIR)/$(HEX_NAME): $(APP_BUILD_DIR)/$(ELF_NAME)
@@ -152,14 +127,14 @@ $(APP_BUILD_DIR)/$(BIN_NAME): $(APP_BUILD_DIR)/$(ELF_NAME)
 $(APP_BUILD_DIR):
 	$(call cmd,mkdir)
 
+$(ADA_BUILD_DIR):
+	$(call cmd,mkdir)
 
-__clean: libkernel.gpr
-	$(call cmd,ada_clean)
-	-rm generated/*
-	-rm $(APP_BUILD_DIR)/$(BIN_NAME) $(HEX_NAME) $(OBJ) $(DEP)
+__clean: ewok.gpr
+	LD_FILE=$(APP_NAME).ld KERN_BINARY=$(APP_NAME).elf ADA_ARCH=$(CONFIG_ADA_ARCH) ADA_RUNTIME=$(ADA_RUNTIME) ADA_PROFILE=$(CONFIG_ADA_PROFILE) BUILD_DIR=$(APP_BUILD_DIR) ARCH=$(CONFIG_ARCH) SOCNAME=$(CONFIG_SOCNAME) KERNEL_ADA_BUILDSIZE=$(CONFIG_KERNEL_ADA_BUILDSIZE) gprclean -c -Pewok.gpr
 
 __distclean: libkernel.gpr
-	$(call cmd,ada_distclean)
+	LD_FILE=$(APP_NAME).ld KERN_BINARY=$(APP_NAME).elf ADA_ARCH=$(CONFIG_ADA_ARCH) ADA_RUNTIME=$(ADA_RUNTIME) ADA_PROFILE=$(CONFIG_ADA_PROFILE) BUILD_DIR=$(APP_BUILD_DIR) ARCH=$(CONFIG_ARCH) SOCNAME=$(CONFIG_SOCNAME) KERNEL_ADA_BUILDSIZE=$(CONFIG_KERNEL_ADA_BUILDSIZE) gprclean -Pewok.gpr
 
 #
 # As any modification in the user apps permissions or configuration impact the kernel
@@ -169,12 +144,8 @@ __distclean: libkernel.gpr
 # account in the kernel
 #
 clean_headers:
-	-rm generated/*
-	rm -rf $(APP_BUILD_DIR)/kernel.*.hex
-	rm -rf $(APP_BUILD_DIR)/*.elf
-
--include $(DEP)
-# no deps for soc obj
-$(SOC_OBJ):
-
+	-rm C/generated/*
+	-rm Ada/generated/*
+	-rm -rf $(APP_BUILD_DIR)/kernel.*.hex
+	-rm -rf $(APP_BUILD_DIR)/*.elf
 

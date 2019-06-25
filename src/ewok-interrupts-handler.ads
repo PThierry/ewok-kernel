@@ -35,10 +35,6 @@ is
      (frame_a : ewok.t_stack_frame_access) return ewok.t_stack_frame_access;
 
    function default_sub_handler
-     (frame_a : t_stack_frame_access) return t_stack_frame_access
-      with
-         convention     => c,
-         export         => true,
-         external_name  => "Default_SubHandler";
+     (frame_a : t_stack_frame_access) return t_stack_frame_access;
 
 end ewok.interrupts.handler;
